@@ -20,8 +20,7 @@ const Index = () => {
             : 0.6;
             
         const yOffset = scrollTop * speed;
-        // Use setAttribute instead of directly setting style
-        element.setAttribute('style', `transform: translateY(${yOffset}px)`);
+        element.style.transform = `translateY(${yOffset}px)`;
       });
     };
     
