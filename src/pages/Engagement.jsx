@@ -9,8 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
-  MessageSquare, Send, QrCode, Calendar, User, Users, Heart, Star, Lightning, 
-  Mail, Phone, School, MapPin, Ticket, Sparkles, Zap, Clock
+  MessageSquare, Send, QrCode, Calendar, User, Users, Heart, Star, 
+  Mail, Phone, School, MapPin, Ticket, Sparkles, Zap, Clock, LucideIcon
 } from 'lucide-react';
 
 const Engagement = () => {
@@ -178,14 +178,14 @@ const Engagement = () => {
                     <CardContent>
                       <div className="space-y-4">
                         <div className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/5 transition-colors">
-                          <Lightning className="h-5 w-5 text-amber-500" />
+                          <Zap className="h-5 w-5 text-amber-500" />
                           <div>
                             <div className="font-medium">Express Check-in</div>
                             <p className="text-sm text-muted-foreground">Skip the line with our mobile app</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/5 transition-colors">
-                          <Zap className="h-5 w-5 text-purple-500" />
+                          <Sparkles className="h-5 w-5 text-purple-500" />
                           <div>
                             <div className="font-medium">Pre-event Networking</div>
                             <p className="text-sm text-muted-foreground">Connect with attendees before the event</p>
