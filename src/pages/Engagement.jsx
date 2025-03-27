@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   MessageSquare, Send, QrCode, Calendar, User, Users, Heart, Star, 
-  Mail, Phone, School, MapPin, Ticket, Sparkles, Zap, Clock, LucideIcon
+  Mail, Phone, School, MapPin, Ticket, Sparkles, Zap, Clock
 } from 'lucide-react';
 
 const Engagement = () => {
