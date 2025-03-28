@@ -1,14 +1,190 @@
-
 import React, { useState } from 'react';
+import { SubmitHandler } from 'react-hook-form';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import EventManagementForm from '../components/EventManagementForm';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckSquare, Clock, Users, FileText, Image } from 'lucide-react';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { 
+  Zap, 
+  Clock, 
+  Users, 
+  FileText, 
+  AlertTriangle 
+} from 'lucide-react';
+
+type FormData = {
+  eventName: string;
+  prTasks: string;
+  techTasks: string;
+  logisticsTasks: string;
+  creativesTasks: string;
+};
+
+type AIGeneratedTask = {
+  description: string;
+  complexity: 'Low' | 'Medium' | 'High';
+  estimatedTime: string;
+  assignedTo?: string;
+};
 
 const EventManagement = () => {
+  const [formData, setFormData] = useState<FormData | null>(null);
+  const [aiGeneratedTasks, setAIGeneratedTasks] = useState<{
+    pr?: AIGeneratedTask[];
+    tech?: AIGeneratedTask[];
+    logistics?: AIGeneratedTask[];
+    creatives?: AIGeneratedTask[];
+  }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState("pr");
-  
+
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+  const genAI = GEMINI_API_KEY 
+    ? new GoogleGenerativeAI(GEMINI_API_KEY) 
+    : null;
+
+  // Helper function to manually extract tasks if JSON parsing fails
+  const extractTasksManually = (response: string): AIGeneratedTask[] => {
+    const taskDescriptions = response.split('\n')
+      .filter(line => 
+        line.trim().length > 0 && 
+        !line.includes('```') && 
+        !line.toLowerCase().includes('json')
+      )
+      .slice(0, 5); // Limit to 5 tasks
+
+    return taskDescriptions.map(desc => ({
+      description: desc.replace(/^[-*]?\s*/, '').trim(),
+      complexity: 'Medium',
+      estimatedTime: '1-2 hours',
+      assignedTo: 'Team'
+    }));
+  };
+
+  const generateAITasks = async (teamType: string, existingTasks: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!genAI) {
+        throw new Error('Gemini API Key is missing');
+      }
+
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+      const prompt = `You are an expert event management AI assistant. Generate a comprehensive list of tasks for the ${teamType} team for an event named "${formData?.eventName}".
+
+Existing tasks: ${existingTasks}
+
+For each task, provide a detailed JSON object with the following structure:
+{
+  "description": "Specific, actionable task description",
+  "complexity": "Low" | "Medium" | "High",
+  "estimatedTime": "Time required to complete the task (e.g., '2 hours', '1 day')",
+  "assignedTo": "Optional suggested team role or department"
+}
+
+Generate 3-5 additional tasks that complement the existing tasks and ensure event success. Focus on practicality, efficiency, and thorough event preparation.`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response.text();
+
+      // Extract JSON from code block or parse directly
+      const jsonMatch = response.match(/```json\n([\s\S]*?)\n```|(\[.*\])/);
+      let generatedTasks: AIGeneratedTask[] = [];
+
+      if (jsonMatch) {
+        const jsonString = jsonMatch[1] || jsonMatch[2];
+        try {
+          generatedTasks = JSON.parse(jsonString);
+        } catch (parseError) {
+          console.error('JSON Parsing Error:', parseError);
+          // Fallback parsing
+          generatedTasks = extractTasksManually(response);
+        }
+      } else {
+        // Fallback parsing if no JSON found
+        generatedTasks = extractTasksManually(response);
+      }
+
+      // Validate and clean tasks
+      const validatedTasks = generatedTasks.map(task => ({
+        description: task.description || 'Unspecified task',
+        complexity: task.complexity || 'Medium',
+        estimatedTime: task.estimatedTime || '1-2 hours',
+        assignedTo: task.assignedTo || `${teamType.charAt(0).toUpperCase() + teamType.slice(1)} Team`
+      })).filter(task => task.description);
+
+      setAIGeneratedTasks((prev) => ({
+        ...prev,
+        [teamType]: validatedTasks,
+      }));
+
+    } catch (error) {
+      console.error(`Error generating tasks for ${teamType}:`, error);
+      setError(`Failed to generate tasks for ${teamType}. ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSubmit: SubmitHandler<FormData> = (data) => {
+    setFormData(data);
+
+    // Automatically generate AI tasks for each team
+    generateAITasks('pr', data.prTasks);
+    generateAITasks('tech', data.techTasks);
+    generateAITasks('logistics', data.logisticsTasks);
+    generateAITasks('creatives', data.creativesTasks);
+  };
+
+  // Render tasks for a specific team
+  const renderTeamTasks = (teamType: keyof typeof aiGeneratedTasks) => {
+    const tasks = aiGeneratedTasks[teamType] || [];
+
+    return (
+      <div className="space-y-4">
+        {tasks.map((task, index) => (
+          <Card key={index} className="w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Zap className="mr-2 text-primary" size={20} />
+                {task.complexity} Priority Task
+              </CardTitle>
+              <CardDescription>
+                <Clock className="inline-block mr-2" size={16} />
+                Estimated Time: {task.estimatedTime}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>{task.description}</p>
+              {task.assignedTo && (
+                <div className="mt-2 flex items-center">
+                  <Users className="mr-2" size={16} />
+                  <span>Assigned to: {task.assignedTo}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
+  if (!GEMINI_API_KEY) {
+    return (
+      <div className="container mx-auto p-6 text-center text-red-500">
+        <h1>Configuration Error</h1>
+        <p>Gemini API Key is missing. Please check your .env file.</p>
+        <p>Ensure you have VITE_GEMINI_API_KEY set correctly.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -23,394 +199,58 @@ const EventManagement = () => {
               Streamline planning with role-based dashboards for your entire team
             </p>
           </div>
-          
-          <Tabs defaultValue="pr" className="w-full" onValueChange={setSelectedTab}>
-            <div className="flex justify-center mb-8">
-              <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full max-w-3xl">
-                <TabsTrigger value="pr" className="py-3">PR Team</TabsTrigger>
-                <TabsTrigger value="tech" className="py-3">Tech Team</TabsTrigger>
-                <TabsTrigger value="logistics" className="py-3">Logistics</TabsTrigger>
-                <TabsTrigger value="creatives" className="py-3">Creatives</TabsTrigger>
-              </TabsList>
+
+          {/* Error Display */}
+          {error && (
+            <div className="max-w-4xl mx-auto mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <div className="flex items-center">
+                <AlertTriangle className="mr-2" size={24} />
+                <strong className="font-bold mr-2">Error: </strong>
+                <span>{error}</span>
+              </div>
             </div>
-            
-            <TabsContent value="pr" className="animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <FileText className="mr-2 h-5 w-5 text-primary" />
-                      Press Releases
-                    </CardTitle>
-                    <CardDescription>Manage your event press releases</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60 flex justify-between">
-                        <span>Event Announcement</span>
-                        <span className="text-green-500">Published</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex justify-between">
-                        <span>Speaker Lineup</span>
-                        <span className="text-amber-500">Draft</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex justify-between">
-                        <span>Sponsor Showcase</span>
-                        <span className="text-blue-500">Review</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Users className="mr-2 h-5 w-5 text-primary" />
-                      Media Contacts
-                    </CardTitle>
-                    <CardDescription>Your press and media contacts</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Campus Daily</div>
-                        <div className="text-sm text-muted-foreground">editor@campusdaily.edu</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Student Radio</div>
-                        <div className="text-sm text-muted-foreground">programs@studentradio.fm</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Local News</div>
-                        <div className="text-sm text-muted-foreground">tips@localnews.com</div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Calendar className="mr-2 h-5 w-5 text-primary" />
-                      PR Timeline
-                    </CardTitle>
-                    <CardDescription>Your PR campaign schedule</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                        <div className="flex-1">
-                          <div className="font-medium">Initial Announcement</div>
-                          <div className="text-xs text-muted-foreground">2 weeks ago</div>
-                        </div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <div className="w-2 h-2 rounded-full bg-primary mr-2"></div>
-                        <div className="flex-1">
-                          <div className="font-medium">Reminder Campaign</div>
-                          <div className="text-xs text-muted-foreground">Today</div>
-                        </div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <div className="w-2 h-2 rounded-full bg-gray-300 mr-2"></div>
-                        <div className="flex-1">
-                          <div className="font-medium">Final Push</div>
-                          <div className="text-xs text-muted-foreground">In 2 days</div>
-                        </div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="tech" className="animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <CheckSquare className="mr-2 h-5 w-5 text-primary" />
-                      Tech Checklist
-                    </CardTitle>
-                    <CardDescription>Equipment and setup checklist</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" defaultChecked />
-                        <span>Sound system setup</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" defaultChecked />
-                        <span>Projector calibration</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>Microphone testing</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>WiFi verification</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>Backup equipment check</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Users className="mr-2 h-5 w-5 text-primary" />
-                      Tech Support Team
-                    </CardTitle>
-                    <CardDescription>Team members and assignments</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Alex Johnson</div>
-                        <div className="text-sm text-muted-foreground">Audio/Visual Lead</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Taylor Smith</div>
-                        <div className="text-sm text-muted-foreground">Streaming Specialist</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Jamie Wilson</div>
-                        <div className="text-sm text-muted-foreground">IT Support</div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Clock className="mr-2 h-5 w-5 text-primary" />
-                      Tech Schedule
-                    </CardTitle>
-                    <CardDescription>Setup and testing timeline</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">3:00 PM</div>
-                        <div className="text-sm text-muted-foreground">Initial setup & equipment check</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">4:30 PM</div>
-                        <div className="text-sm text-muted-foreground">Sound check with performers</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">5:45 PM</div>
-                        <div className="text-sm text-muted-foreground">Final system testing</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">6:30 PM</div>
-                        <div className="text-sm text-muted-foreground">Doors open, standby support</div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="logistics" className="animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Calendar className="mr-2 h-5 w-5 text-primary" />
-                      Event Timeline
-                    </CardTitle>
-                    <CardDescription>Complete event schedule</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">3:00 PM - 5:00 PM</div>
-                        <div className="text-sm text-muted-foreground">Setup and Preparation</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">6:00 PM - 6:30 PM</div>
-                        <div className="text-sm text-muted-foreground">Guest Registration</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">6:30 PM - 7:00 PM</div>
-                        <div className="text-sm text-muted-foreground">Opening Remarks</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">7:00 PM - 9:00 PM</div>
-                        <div className="text-sm text-muted-foreground">Main Event</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">9:00 PM - 10:00 PM</div>
-                        <div className="text-sm text-muted-foreground">Networking & Closing</div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Users className="mr-2 h-5 w-5 text-primary" />
-                      Venue Staff
-                    </CardTitle>
-                    <CardDescription>Venue management and support</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Venue Manager</div>
-                        <div className="text-sm text-muted-foreground">Casey Thompson (555-123-4567)</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Security Lead</div>
-                        <div className="text-sm text-muted-foreground">Morgan Lee (555-234-5678)</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Catering Coordinator</div>
-                        <div className="text-sm text-muted-foreground">Riley Johnson (555-345-6789)</div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <CheckSquare className="mr-2 h-5 w-5 text-primary" />
-                      Logistics Checklist
-                    </CardTitle>
-                    <CardDescription>Essential logistics tasks</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" defaultChecked />
-                        <span>Venue contract signed</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" defaultChecked />
-                        <span>Insurance confirmed</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" defaultChecked />
-                        <span>Catering ordered</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>Registration table setup</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>Signage placement</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="creatives" className="animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Image className="mr-2 h-5 w-5 text-primary" />
-                      Design Assets
-                    </CardTitle>
-                    <CardDescription>Promotional materials and designs</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="aspect-video bg-gradient-to-r from-primary/20 to-accent/20 rounded flex items-center justify-center">
-                        Poster 1
-                      </div>
-                      <div className="aspect-video bg-gradient-to-r from-primary/20 to-accent/20 rounded flex items-center justify-center">
-                        Poster 2
-                      </div>
-                      <div className="aspect-video bg-gradient-to-r from-primary/20 to-accent/20 rounded flex items-center justify-center">
-                        Social Banner
-                      </div>
-                      <div className="aspect-video bg-gradient-to-r from-primary/20 to-accent/20 rounded flex items-center justify-center">
-                        Email Header
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <FileText className="mr-2 h-5 w-5 text-primary" />
-                      Content Calendar
-                    </CardTitle>
-                    <CardDescription>Content publication schedule</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Monday</div>
-                        <div className="text-sm text-muted-foreground">Event announcement post</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Wednesday</div>
-                        <div className="text-sm text-muted-foreground">Speaker spotlight #1</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Friday</div>
-                        <div className="text-sm text-muted-foreground">Event countdown & teaser</div>
-                      </li>
-                      <li className="p-2 rounded bg-background/60">
-                        <div className="font-medium">Monday (next)</div>
-                        <div className="text-sm text-muted-foreground">Final reminder & details</div>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass-card card-3d-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <CheckSquare className="mr-2 h-5 w-5 text-primary" />
-                      Creative Tasks
-                    </CardTitle>
-                    <CardDescription>Design and content tasks</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" defaultChecked />
-                        <span>Event logo finalized</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" defaultChecked />
-                        <span>Social media graphics</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>Promotional video</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>Event program design</span>
-                      </li>
-                      <li className="p-2 rounded bg-background/60 flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span>Speaker intro slides</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
+          )}
+
+          {/* Admin Form */}
+          <EventManagementForm onSubmit={onSubmit} isLoading={isLoading} />
+
+          {/* Tasks Display Section */}
+          {Object.keys(aiGeneratedTasks).length > 0 && (
+            <div className="max-w-4xl mx-auto mt-12">
+              <Tabs 
+                value={selectedTab} 
+                onValueChange={setSelectedTab}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="pr">
+                    <FileText className="mr-2" /> PR
+                  </TabsTrigger>
+                  <TabsTrigger value="tech">
+                    <Zap className="mr-2" /> Tech
+                  </TabsTrigger>
+                  <TabsTrigger value="logistics">
+                    <Users className="mr-2" /> Logistics
+                  </TabsTrigger>
+                  <TabsTrigger value="creatives">
+                    <Clock className="mr-2" /> Creatives
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="pr">
+                  {renderTeamTasks('pr')}
+                </TabsContent>
+                <TabsContent value="tech">
+                  {renderTeamTasks('tech')}
+                </TabsContent>
+                <TabsContent value="logistics">
+                  {renderTeamTasks('logistics')}
+                </TabsContent>
+                <TabsContent value="creatives">
+                  {renderTeamTasks('creatives')}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
       </main>
       <Footer />
