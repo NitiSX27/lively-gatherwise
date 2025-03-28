@@ -41,14 +41,15 @@ const Navbar = () => {
             <Link to="/pr-marketing" className="nav-link">PR & Marketing</Link>
             <Link to="/engagement" className="nav-link">Engagement</Link>
             <Link to="/analytics" className="nav-link">Analytics</Link>
+
           </nav>
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link to="/login" className="text-foreground/80 hover:text-foreground transition-colors duration-200">
+            <Link to="/auth/login" className="text-foreground/80 hover:text-foreground transition-colors duration-200">
               Log in
             </Link>
-            <Link to="/signup" className="btn-primary">
+            <Link to="/auth/signup" className="btn-primary">
               Get Started
             </Link>
           </div>
