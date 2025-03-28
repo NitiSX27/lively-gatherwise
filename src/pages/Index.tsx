@@ -4,8 +4,39 @@ import Hero from '../components/Hero';
 import Navbar from '../components/Navbar';
 import FeatureSection from '../components/FeatureSection';
 import Footer from '../components/Footer';
+import Events from '../components/Events';
+import { useState } from 'react';
+
+type Event = {
+  _id: string;
+  name: string;
+  description: string;
+  timeline: string;
+};
 
 const Index = () => {
+  const [events, setEvents] = useState<Event[]>([]);
+
+  // Fetch events from the backend
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/events");
+      if (!response.ok) {
+        throw new Error("Failed to fetch events");
+      }
+      const data = await response.json();
+      setEvents(data);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+  const handleFeedbackSubmit = (eventName: string) => {
+    alert(`Feedback submitted for event: ${eventName}`);
+  };
   // Initialize smooth parallax scrolling
   useEffect(() => {
     const handleScroll = () => {
@@ -83,6 +114,34 @@ const Index = () => {
             </div>
           </div>
         </section>
+                {/* Events Section */}
+                <section className="py-24 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Upcoming Events</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Explore the latest events happening in your organization.
+              </p>
+            </div>
+
+            <div className="mt-6 max-h-96 overflow-y-auto space-y-4 animate-scroll">
+              {events.length === 0 ? (
+                <p className="text-gray-500">No events available.</p>
+              ) : (
+                events.map((event) => (
+                  <Events
+                    key={event._id}
+                    name={event.name}
+                    description={event.description}
+                    timeline={event.timeline}
+                    onFeedbackSubmit={() => handleFeedbackSubmit(event.name)} // Pass event name to feedback handler
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
         
         {/* CTA Section */}
         <section className="py-24 bg-gradient-to-r from-primary/10 to-accent/10">
