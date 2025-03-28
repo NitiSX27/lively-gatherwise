@@ -50,11 +50,13 @@ const App = () => {
   };
 
   return (
+   
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
+        
           <Routes>
             <Route path="/" element={<Index />} />
 
@@ -91,6 +93,7 @@ const App = () => {
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
+   
   );
 };
 
