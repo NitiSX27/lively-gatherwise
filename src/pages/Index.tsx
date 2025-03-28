@@ -6,6 +6,7 @@ import FeatureSection from '../components/FeatureSection';
 import Footer from '../components/Footer';
 import Events from '../components/Events';
 import { useState } from 'react';
+import axios from 'axios';
 
 type Event = {
   _id: string;
@@ -16,6 +17,10 @@ type Event = {
 
 const Index = () => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+  const [platform, setPlatform] = useState<string>("Instagram");
 
   // Fetch events from the backend
   const fetchEvents = async () => {
@@ -36,6 +41,34 @@ const Index = () => {
   }, []);
   const handleFeedbackSubmit = (eventName: string) => {
     alert(`Feedback submitted for event: ${eventName}`);
+  };
+  const handleGenerateContent = async () => {
+    if (!selectedEvent) {
+      alert("Please select an event to generate content.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post("http://localhost:5000/api/social-media/generate-post", {
+        eventName: selectedEvent.name,
+        description: selectedEvent.description,
+        platform,
+      });
+      setGeneratedContent(response.data.content);
+    } catch (error) {
+      console.error("Error generating content:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handlePostToPlatform = () => {
+    if (!generatedContent) {
+      alert("Please generate content before posting.");
+      return;
+    }
+
+    alert(`Post uploaded to ${platform} successfully!`);
   };
   // Initialize smooth parallax scrolling
   useEffect(() => {
@@ -142,7 +175,67 @@ const Index = () => {
           </div>
         </section>
 
-        
+                {/* Social Media Automation Section */}
+                <section className="py-24 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Automate Social Media Posts</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Use AI to generate and post engaging content for your events on social media platforms.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium">Select Event</label>
+                <select
+                  value={selectedEvent?._id || ""}
+                  onChange={(e) =>
+                    setSelectedEvent(events.find((event) => event._id === e.target.value) || null)
+                  }
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="">Select an event</option>
+                  {events.map((event) => (
+                    <option key={event._id} value={event._id}>
+                      {event.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+              <label className="block text-sm font-medium">Platform</label>
+                <select
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="Instagram">Instagram</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="Twitter">Twitter</option>
+                </select>
+              </div>
+              <button
+                onClick={handleGenerateContent}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300"
+                disabled={loading}
+              >
+                {loading ? "Generating..." : "Generate Content"}
+              </button>
+              {generatedContent && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold">Generated Content</h3>
+                  <p className="p-2 border rounded bg-gray-100">{generatedContent}</p>
+                  <button
+                    onClick={handlePostToPlatform}
+                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300 mt-2"
+                  >
+                    Post to {platform}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
         {/* CTA Section */}
         <section className="py-24 bg-gradient-to-r from-primary/10 to-accent/10">
           <div className="container mx-auto px-4">
