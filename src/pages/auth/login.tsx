@@ -31,9 +31,9 @@ const Login: React.FC<LoginProps> = ({ setAuth, setUser }) => {
 
       if (response.ok) {
         localStorage.setItem("token", data.token);
-        setAuth(true); // Set authentication state to true
-        setUser({ id: data.userId, email }); // Store user info
-        navigate("/"); // Redirect to home
+        setAuth(true);
+        setUser({ id: data.userId, email });
+        navigate("/");
       } else {
         setError(data.message || "Invalid credentials");
       }
@@ -77,7 +77,7 @@ const Login: React.FC<LoginProps> = ({ setAuth, setUser }) => {
               />
               Remember me?
             </label>
-            <Link to="/forgot-password" className="text-blue-500">
+            <Link to="/forgot-password" className="text-blue-500 hover:underline">
               Forgot password?
             </Link>
           </div>
@@ -85,6 +85,14 @@ const Login: React.FC<LoginProps> = ({ setAuth, setUser }) => {
             Login →
           </button>
         </form>
+
+        {/* Add Signup Link Here */}
+        <p className="mt-4 text-sm text-gray-600">
+          Don't have an account?{" "}
+          <Link to="/auth/signup" className="text-blue-500 hover:underline">
+            Create an account
+          </Link>
+        </p>
       </div>
     </div>
   );

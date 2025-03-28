@@ -78,6 +78,13 @@ const Signup: React.FC<SignupProps> = ({ setAuth, setUser }) => {
             Create →
           </button>
         </form>
+
+        <p className="mt-4 text-sm text-gray-600">
+          Already have an account?{" "}
+          <Link to="/auth/login" className="text-blue-500 hover:underline">
+            Login here
+          </Link>
+        </p>
       </div>
     </div>
   );
