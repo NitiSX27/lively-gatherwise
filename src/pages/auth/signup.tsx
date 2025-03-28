@@ -24,7 +24,8 @@ const Signup: React.FC<SignupProps> = ({ setAuth, setUser }) => {
       const response = await fetch("http://localhost:5000/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ username: name, email, password }),
+
       });
 
       const data = await response.json();
@@ -32,7 +33,7 @@ const Signup: React.FC<SignupProps> = ({ setAuth, setUser }) => {
       if (response.ok) {
         localStorage.setItem("token", data.token);
         setAuth(true); // Set authentication state
-        setUser({ id: data.userId, name, email }); // Store user info
+        setUser({ id: data.userId, username: name, email });
         navigate("/"); // Redirect to home
       } else {
         setError(data.message || "Signup failed. Try again.");
