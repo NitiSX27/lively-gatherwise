@@ -3,7 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { EventProvider } from './context/EventContext';
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import EventManagement from "./pages/EventManagement";
@@ -50,50 +51,49 @@ const App = () => {
   };
 
   return (
-   
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-        
-          <Routes>
-            <Route path="/" element={<Index />} />
+    <EventProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Router>
+            <Routes>
+              <Route path="/" element={<Index />} />
 
-            {/* Protected Routes (Require Authentication) */}
-            <Route
-              path="/event-management"
-              element={isAuthenticated ? <EventManagement /> : <Navigate to="/auth/login" />}
-            />
-            <Route
-              path="/pr-marketing"
-              element={isAuthenticated ? <PRMarketing /> : <Navigate to="/auth/login" />}
-            />
-            <Route
-              path="/engagement"
-              element={isAuthenticated ? <Engagement /> : <Navigate to="/auth/login" />}
-            />
-            <Route
-              path="/analytics"
-              element={isAuthenticated ? <Analytics /> : <Navigate to="/auth/login" />}
-            />
+              {/* Protected Routes (Require Authentication) */}
+              <Route
+                path="/event-management"
+                element={isAuthenticated ? <EventManagement /> : <Navigate to="/auth/login" />}
+              />
+              <Route
+                path="/pr-marketing"
+                element={isAuthenticated ? <PRMarketing /> : <Navigate to="/auth/login" />}
+              />
+              <Route
+                path="/engagement"
+                element={isAuthenticated ? <Engagement /> : <Navigate to="/auth/login" />}
+              />
+              <Route
+                path="/analytics"
+                element={isAuthenticated ? <Analytics /> : <Navigate to="/auth/login" />}
+              />
 
-            {/* Public Routes */}
-            <Route
-              path="/auth/login"
-              element={<Login setAuth={setIsAuthenticated} setUser={setUser} />}
-            />
-            <Route
-              path="/auth/signup"
-              element={<Signup setAuth={setIsAuthenticated} setUser={setUser} />}
-            />
+              {/* Public Routes */}
+              <Route
+                path="/auth/login"
+                element={<Login setAuth={setIsAuthenticated} setUser={setUser} />}
+              />
+              <Route
+                path="/auth/signup"
+                element={<Signup setAuth={setIsAuthenticated} setUser={setUser} />}
+              />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-   
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </EventProvider>
   );
 };
 
