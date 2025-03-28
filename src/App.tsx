@@ -13,6 +13,7 @@ import Engagement from "./pages/Engagement";
 import Analytics from "./pages/Analytics";
 import Login from "./pages/auth/login";
 import Signup from "./pages/auth/signup";
+import AddEvent from "./pages/AddEvent";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,7 @@ const App = () => {
                 path="/auth/signup"
                 element={<Signup setAuth={setIsAuthenticated} setUser={setUser} />}
               />
+              <Route path="/add-event" element={<AddEvent />} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>

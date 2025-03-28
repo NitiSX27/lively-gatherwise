@@ -41,7 +41,7 @@ const Navbar = () => {
             <Link to="/pr-marketing" className="nav-link">PR & Marketing</Link>
             <Link to="/engagement" className="nav-link">Engagement</Link>
             <Link to="/analytics" className="nav-link">Analytics</Link>
-
+            <Link to="/add-event" className="nav-link">Add event</Link>
           </nav>
 
           {/* CTA Buttons */}
