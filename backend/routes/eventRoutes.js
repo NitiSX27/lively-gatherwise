@@ -1,11 +1,10 @@
 const express = require("express");
 const Event = require("../models/Event");
-const authMiddleware = require("../middleware/authMiddleware"); // Import the auth middleware
 
 const router = express.Router();
 
-// Get all events (protected route)
-router.get("/", authMiddleware, async (req, res) => {
+// Get all events
+router.get("/", async (req, res) => {
   try {
     const events = await Event.find().sort({ createdAt: -1 });
     res.json(events);
@@ -14,8 +13,8 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// Add a new event (protected route)
-router.post("/", authMiddleware, async (req, res) => {
+// Add a new event
+router.post("/", async (req, res) => {
   try {
     const { name, description, timeline } = req.body;
     const newEvent = new Event({ name, description, timeline });
