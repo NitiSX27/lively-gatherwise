@@ -25,6 +25,7 @@ type FormData = {
 };
 
 type PastEventData = {
+  _id: string;
   name: string;
   description: string;
   date: string;
@@ -43,6 +44,7 @@ type AIGeneratedTask = {
 const EventManagement = () => {
   const [formData, setFormData] = useState<FormData | null>(null);
   const [pastEvents, setPastEvents] = useState<PastEventData[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<PastEventData | undefined>();
   const [aiGeneratedTasks, setAIGeneratedTasks] = useState<{
     pr?: AIGeneratedTask[];
     tech?: AIGeneratedTask[];
@@ -208,7 +210,12 @@ Generate 3-5 additional tasks that complement the existing tasks and ensure even
     }
   };
 
-  const onSubmit: SubmitHandler<FormData> = (data) => {
+  const handleEventSelect = (eventId: string) => {
+    const event = pastEvents.find(e => e._id === eventId);
+    setSelectedEvent(event);
+  };
+
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
     setFormData(data);
 
     // Automatically generate AI tasks for each team
@@ -279,7 +286,13 @@ Generate 3-5 additional tasks that complement the existing tasks and ensure even
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <EventManagementForm onSubmit={onSubmit} isLoading={isLoading} />
+                <EventManagementForm 
+                  onSubmit={onSubmit}
+                  isLoading={isLoading}
+                  pastEvents={pastEvents}
+                  onEventSelect={handleEventSelect}
+                  selectedEvent={selectedEvent}
+                />
                 {/* Tasks Display Section */}
                 {Object.keys(aiGeneratedTasks).length > 0 && (
                   <div className="max-w-4xl mx-auto mt-12">
