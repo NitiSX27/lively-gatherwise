@@ -2,18 +2,14 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaUser, FaEnvelope, FaLock } from "react-icons/fa";
 import InputField from "../../components/InputField";
+import { useAuth } from "../../context/AuthContext";
 
-interface SignupProps {
-  setAuth: React.Dispatch<React.SetStateAction<boolean>>;
-  setUser: React.Dispatch<React.SetStateAction<any>>;
-}
-
-const Signup: React.FC<SignupProps> = ({ setAuth, setUser }) => {
+const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,16 +21,13 @@ const Signup: React.FC<SignupProps> = ({ setAuth, setUser }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: name, email, password }),
-
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token);
-        setAuth(true); // Set authentication state
-        setUser({ id: data.userId, username: name, email });
-        navigate("/"); // Redirect to home
+        login(data.token);
+        navigate("/");
       } else {
         setError(data.message || "Signup failed. Try again.");
       }

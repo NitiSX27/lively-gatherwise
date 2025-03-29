@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { EventProvider } from './context/EventContext';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import EventManagement from "./pages/EventManagement";
@@ -18,84 +20,49 @@ import AddEvent from "./pages/AddEvent";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (token) {
-      fetch("http://localhost:5000/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data._id) {
-            setUser(data);
-            setIsAuthenticated(true);
-          } else {
-            localStorage.removeItem("token");
-            setIsAuthenticated(false);
-          }
-        })
-        .catch(() => {
-          localStorage.removeItem("token");
-          setIsAuthenticated(false);
-        });
-    }
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
   return (
-    <EventProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Router>
-            <Routes>
-              <Route path="/" element={<Index />} />
+    <Router>
+      <AuthProvider>
+        <EventProvider>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <Routes>
+                <Route path="/" element={<Index />} />
 
-              {/* Protected Routes (Require Authentication) */}
-              <Route
-                path="/event-management"
-                element={isAuthenticated ? <EventManagement /> : <Navigate to="/auth/login" />}
-              />
-              <Route
-                path="/pr-marketing"
-                element={isAuthenticated ? <PRMarketing /> : <Navigate to="/auth/login" />}
-              />
-              <Route
-                path="/engagement"
-                element={isAuthenticated ? <Engagement /> : <Navigate to="/auth/login" />}
-              />
-              <Route
-                path="/analytics"
-                element={isAuthenticated ? <Analytics /> : <Navigate to="/auth/login" />}
-              />
+                {/* Protected Routes */}
+                <Route
+                  path="/event-management"
+                  element={<ProtectedRoute><EventManagement /></ProtectedRoute>}
+                />
+                <Route
+                  path="/pr-marketing"
+                  element={<ProtectedRoute><PRMarketing /></ProtectedRoute>}
+                />
+                <Route
+                  path="/engagement"
+                  element={<ProtectedRoute><Engagement /></ProtectedRoute>}
+                />
+                <Route
+                  path="/analytics"
+                  element={<ProtectedRoute><Analytics /></ProtectedRoute>}
+                />
+                <Route
+                  path="/add-event"
+                  element={<ProtectedRoute><AddEvent /></ProtectedRoute>}
+                />
 
-              {/* Public Routes */}
-              <Route
-                path="/auth/login"
-                element={<Login setAuth={setIsAuthenticated} setUser={setUser} />}
-              />
-              <Route
-                path="/auth/signup"
-                element={<Signup setAuth={setIsAuthenticated} setUser={setUser} />}
-              />
-              <Route path="/add-event" element={<AddEvent />} />
-
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Router>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </EventProvider>
+                {/* Public Routes */}
+                <Route path="/auth/login" element={<Login />} />
+                <Route path="/auth/signup" element={<Signup />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </TooltipProvider>
+          </QueryClientProvider>
+        </EventProvider>
+      </AuthProvider>
+    </Router>
   );
 };
 
