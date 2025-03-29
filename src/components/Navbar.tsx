@@ -1,11 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -16,9 +17,23 @@ const Navbar = () => {
       }
     };
 
+    // Check authentication status
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      setIsAuthenticated(!!token);
+    };
+
     window.addEventListener('scroll', handleScroll);
+    checkAuth(); // Check on component mount
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    navigate('/');
+  };
 
   return (
     <header 
@@ -46,12 +61,23 @@ const Navbar = () => {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link to="/auth/login" className="text-foreground/80 hover:text-foreground transition-colors duration-200">
-              Log in
-            </Link>
-            <Link to="/auth/signup" className="btn-primary">
-              Get Started
-            </Link>
+            {isAuthenticated ? (
+              <button
+                onClick={handleLogout}
+                className="text-foreground/80 hover:text-foreground transition-colors duration-200"
+              >
+                Log out
+              </button>
+            ) : (
+              <>
+                <Link to="/auth/login" className="text-foreground/80 hover:text-foreground transition-colors duration-200">
+                  Log in
+                </Link>
+                <Link to="/auth/signup" className="btn-primary">
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -74,12 +100,23 @@ const Navbar = () => {
             <Link to="/engagement" className="nav-link py-2">Engagement</Link>
             <Link to="/analytics" className="nav-link py-2">Analytics</Link>
             <div className="flex flex-col space-y-3 pt-4 border-t border-border">
-              <Link to="/login" className="text-foreground/80 hover:text-foreground transition-colors duration-200 py-2">
-                Log in
-              </Link>
-              <Link to="/signup" className="btn-primary text-center">
-                Get Started
-              </Link>
+              {isAuthenticated ? (
+                <button
+                  onClick={handleLogout}
+                  className="text-foreground/80 hover:text-foreground transition-colors duration-200 py-2"
+                >
+                  Log out
+                </button>
+              ) : (
+                <>
+                  <Link to="/auth/login" className="text-foreground/80 hover:text-foreground transition-colors duration-200 py-2">
+                    Log in
+                  </Link>
+                  <Link to="/auth/signup" className="btn-primary text-center">
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </div>
