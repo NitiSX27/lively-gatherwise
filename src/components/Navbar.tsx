@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,23 +17,9 @@ const Navbar = () => {
       }
     };
 
-    // Check authentication status
-    const checkAuth = () => {
-      const token = localStorage.getItem('token');
-      setIsAuthenticated(!!token);
-    };
-
     window.addEventListener('scroll', handleScroll);
-    checkAuth(); // Check on component mount
-
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
-    navigate('/');
-  };
 
   return (
     <header 
@@ -52,18 +38,22 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className="nav-link">Home</Link>
-            <Link to="/event-management" className="nav-link">Management</Link>
-            <Link to="/pr-marketing" className="nav-link">PR & Marketing</Link>
-            <Link to="/engagement" className="nav-link">Engagement</Link>
-            <Link to="/analytics" className="nav-link">Analytics</Link>
-            <Link to="/add-event" className="nav-link">Add event</Link>
+            {isAuthenticated && (
+              <>
+                <Link to="/event-management" className="nav-link">Management</Link>
+                <Link to="/pr-marketing" className="nav-link">PR & Marketing</Link>
+                <Link to="/engagement" className="nav-link">Engagement</Link>
+                <Link to="/analytics" className="nav-link">Analytics</Link>
+                <Link to="/add-event" className="nav-link">Add event</Link>
+              </>
+            )}
           </nav>
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <button
-                onClick={handleLogout}
+                onClick={logout}
                 className="text-foreground/80 hover:text-foreground transition-colors duration-200"
               >
                 Log out
@@ -95,14 +85,18 @@ const Navbar = () => {
         <div className="md:hidden glass-card mt-2 mx-4 rounded-2xl p-4 animate-fade-in">
           <nav className="flex flex-col space-y-4">
             <Link to="/" className="nav-link py-2">Home</Link>
-            <Link to="/event-management" className="nav-link py-2">Management</Link>
-            <Link to="/pr-marketing" className="nav-link py-2">PR & Marketing</Link>
-            <Link to="/engagement" className="nav-link py-2">Engagement</Link>
-            <Link to="/analytics" className="nav-link py-2">Analytics</Link>
+            {isAuthenticated && (
+              <>
+                <Link to="/event-management" className="nav-link py-2">Management</Link>
+                <Link to="/pr-marketing" className="nav-link py-2">PR & Marketing</Link>
+                <Link to="/engagement" className="nav-link py-2">Engagement</Link>
+                <Link to="/analytics" className="nav-link py-2">Analytics</Link>
+              </>
+            )}
             <div className="flex flex-col space-y-3 pt-4 border-t border-border">
               {isAuthenticated ? (
                 <button
-                  onClick={handleLogout}
+                  onClick={logout}
                   className="text-foreground/80 hover:text-foreground transition-colors duration-200 py-2"
                 >
                   Log out

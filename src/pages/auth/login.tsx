@@ -2,18 +2,14 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FaUser, FaLock } from "react-icons/fa";
 import InputField from "../../components/InputField";
+import { useAuth } from "../../context/AuthContext";
 
-interface LoginProps {
-  setAuth: React.Dispatch<React.SetStateAction<boolean>>;
-  setUser: React.Dispatch<React.SetStateAction<any>>;
-}
-
-const Login: React.FC<LoginProps> = ({ setAuth, setUser }) => {
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,9 +26,7 @@ const Login: React.FC<LoginProps> = ({ setAuth, setUser }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token);
-        setAuth(true);
-        setUser({ id: data.userId, email });
+        login(data.token);
         navigate("/");
       } else {
         setError(data.message || "Invalid credentials");
@@ -86,7 +80,6 @@ const Login: React.FC<LoginProps> = ({ setAuth, setUser }) => {
           </button>
         </form>
 
-        {/* Add Signup Link Here */}
         <p className="mt-4 text-sm text-gray-600">
           Don't have an account?{" "}
           <Link to="/auth/signup" className="text-blue-500 hover:underline">
