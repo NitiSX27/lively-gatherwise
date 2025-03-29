@@ -1,16 +1,23 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const FeedbackForm = ({ eventId }: { eventId: string }) => {
+interface FeedbackFormProps {
+  eventId: string;
+  onClose?: () => void;
+}
+
+const FeedbackForm: React.FC<FeedbackFormProps> = ({ eventId, onClose }) => {
   const [rating, setRating] = useState<number>(0);
   const [eventExperience, setEventExperience] = useState<number>(0);
   const [speakerInteraction, setSpeakerInteraction] = useState<number>(0);
   const [sessionRelevance, setSessionRelevance] = useState<number>(0);
   const [suggestions, setSuggestions] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
 
     try {
       const response = await axios.post("http://localhost:5000/api/feedback", {
@@ -32,6 +39,8 @@ const FeedbackForm = ({ eventId }: { eventId: string }) => {
       }
     } catch (error) {
       console.error("Error submitting feedback:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -86,12 +95,25 @@ const FeedbackForm = ({ eventId }: { eventId: string }) => {
             placeholder="Any suggestions for improvement?"
           />
         </div>
-        <button
-          type="submit"
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300"
-        >
-          Submit Feedback
-        </button>
+        <div className="flex justify-end gap-4">
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300 disabled:opacity-50"
+            disabled={submitting}
+          >
+            {submitting ? "Submitting..." : "Submit Feedback"}
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { SubmitHandler } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { SubmitHandler, useForm } from 'react-hook-form';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventManagementForm from '../components/EventManagementForm';
@@ -11,7 +11,9 @@ import {
   Clock, 
   Users, 
   FileText, 
-  AlertTriangle 
+  AlertTriangle,
+  Calendar,
+  MapPin
 } from 'lucide-react';
 
 type FormData = {
@@ -20,6 +22,15 @@ type FormData = {
   techTasks: string;
   logisticsTasks: string;
   creativesTasks: string;
+};
+
+type PastEventData = {
+  name: string;
+  description: string;
+  date: string;
+  location: string;
+  image: string;
+  organizer: string;
 };
 
 type AIGeneratedTask = {
@@ -31,6 +42,7 @@ type AIGeneratedTask = {
 
 const EventManagement = () => {
   const [formData, setFormData] = useState<FormData | null>(null);
+  const [pastEvents, setPastEvents] = useState<PastEventData[]>([]);
   const [aiGeneratedTasks, setAIGeneratedTasks] = useState<{
     pr?: AIGeneratedTask[];
     tech?: AIGeneratedTask[];
@@ -40,14 +52,78 @@ const EventManagement = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState("pr");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const { register, handleSubmit, reset } = useForm<PastEventData>();
 
   const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+  const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
-  const genAI = GEMINI_API_KEY 
-    ? new GoogleGenerativeAI(GEMINI_API_KEY) 
-    : null;
+  const fetchPastEvents = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("http://localhost:5000/api/events");
+      if (!response.ok) throw new Error('Failed to fetch events');
+      const data = await response.json();
+      setPastEvents(data);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching past events:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch events');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // Helper function to manually extract tasks if JSON parsing fails
+  useEffect(() => {
+    fetchPastEvents();
+  }, []);
+
+  const onSubmitPastEvent = async (data: PastEventData) => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError("Please log in to add events");
+        return;
+      }
+
+      const formData = {
+        ...data,
+        timeline: new Date(data.date).toISOString() // Convert date to ISO string
+      };
+
+      const response = await fetch("http://localhost:5000/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add event');
+      }
+      
+      reset();
+      fetchPastEvents();
+      setError(null);
+    } catch (error) {
+      console.error('Error adding past event:', error);
+      setError(error instanceof Error ? error.message : 'Failed to add event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredEvents = pastEvents.filter(event => 
+    event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.location.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const extractTasksManually = (response: string): AIGeneratedTask[] => {
     const taskDescriptions = response.split('\n')
       .filter(line => 
@@ -142,7 +218,6 @@ Generate 3-5 additional tasks that complement the existing tasks and ensure even
     generateAITasks('creatives', data.creativesTasks);
   };
 
-  // Render tasks for a specific team
   const renderTeamTasks = (teamType: keyof typeof aiGeneratedTasks) => {
     const tasks = aiGeneratedTasks[teamType] || [];
 
@@ -186,73 +261,213 @@ Generate 3-5 additional tasks that complement the existing tasks and ensure even
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto mb-12 text-center">
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1 text-sm font-medium text-primary mb-4">
-              Team Management
-            </span>
-            <h1 className="text-4xl font-bold mb-4">Event Management Dashboard</h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Streamline planning with role-based dashboards for your entire team
-            </p>
-          </div>
+      <div className="container mx-auto px-4 py-24">
+        <Tabs defaultValue="planning" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="planning">Event Planning</TabsTrigger>
+            <TabsTrigger value="past">Past Events</TabsTrigger>
+          </TabsList>
 
-          {/* Error Display */}
-          {error && (
-            <div className="max-w-4xl mx-auto mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <div className="flex items-center">
-                <AlertTriangle className="mr-2" size={24} />
-                <strong className="font-bold mr-2">Error: </strong>
-                <span>{error}</span>
-              </div>
-            </div>
-          )}
+          <TabsContent value="planning">
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Planning Assistant</CardTitle>
+                <CardDescription>
+                  Plan your event and get AI-generated task suggestions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EventManagementForm onSubmit={onSubmit} isLoading={isLoading} />
+                {/* Tasks Display Section */}
+                {Object.keys(aiGeneratedTasks).length > 0 && (
+                  <div className="max-w-4xl mx-auto mt-12">
+                    <Tabs 
+                      value={selectedTab} 
+                      onValueChange={setSelectedTab}
+                      className="w-full"
+                    >
+                      <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="pr">
+                          <FileText className="mr-2" /> PR
+                        </TabsTrigger>
+                        <TabsTrigger value="tech">
+                          <Zap className="mr-2" /> Tech
+                        </TabsTrigger>
+                        <TabsTrigger value="logistics">
+                          <Users className="mr-2" /> Logistics
+                        </TabsTrigger>
+                        <TabsTrigger value="creatives">
+                          <Clock className="mr-2" /> Creatives
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="pr">
+                        {renderTeamTasks('pr')}
+                      </TabsContent>
+                      <TabsContent value="tech">
+                        {renderTeamTasks('tech')}
+                      </TabsContent>
+                      <TabsContent value="logistics">
+                        {renderTeamTasks('logistics')}
+                      </TabsContent>
+                      <TabsContent value="creatives">
+                        {renderTeamTasks('creatives')}
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {/* Admin Form */}
-          <EventManagementForm onSubmit={onSubmit} isLoading={isLoading} />
+          <TabsContent value="past">
+            <Card>
+              <CardHeader>
+                <CardTitle>Past Events</CardTitle>
+                <CardDescription>
+                  Add and view past events
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+                    {error}
+                  </div>
+                )}
 
-          {/* Tasks Display Section */}
-          {Object.keys(aiGeneratedTasks).length > 0 && (
-            <div className="max-w-4xl mx-auto mt-12">
-              <Tabs 
-                value={selectedTab} 
-                onValueChange={setSelectedTab}
-                className="w-full"
-              >
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="pr">
-                    <FileText className="mr-2" /> PR
-                  </TabsTrigger>
-                  <TabsTrigger value="tech">
-                    <Zap className="mr-2" /> Tech
-                  </TabsTrigger>
-                  <TabsTrigger value="logistics">
-                    <Users className="mr-2" /> Logistics
-                  </TabsTrigger>
-                  <TabsTrigger value="creatives">
-                    <Clock className="mr-2" /> Creatives
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="pr">
-                  {renderTeamTasks('pr')}
-                </TabsContent>
-                <TabsContent value="tech">
-                  {renderTeamTasks('tech')}
-                </TabsContent>
-                <TabsContent value="logistics">
-                  {renderTeamTasks('logistics')}
-                </TabsContent>
-                <TabsContent value="creatives">
-                  {renderTeamTasks('creatives')}
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
-        </div>
-      </main>
+                <form onSubmit={handleSubmit(onSubmitPastEvent)} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Event Name *</label>
+                    <input
+                      {...register("name", { required: "Event name is required" })}
+                      className="w-full p-2 border rounded-lg"
+                      placeholder="Enter event name"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Description *</label>
+                    <textarea
+                      {...register("description", { required: "Description is required" })}
+                      className="w-full p-2 border rounded-lg"
+                      placeholder="Enter event description"
+                      rows={3}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Date *</label>
+                      <input
+                        type="datetime-local"
+                        {...register("date", { required: "Date is required" })}
+                        className="w-full p-2 border rounded-lg"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Location *</label>
+                      <input
+                        {...register("location", { required: "Location is required" })}
+                        className="w-full p-2 border rounded-lg"
+                        placeholder="Enter event location"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Image URL *</label>
+                    <input
+                      {...register("image", { 
+                        required: "Image URL is required",
+                        pattern: {
+                          value: /(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png|jpeg)/,
+                          message: "Please enter a valid image URL"
+                        }
+                      })}
+                      type="url"
+                      className="w-full p-2 border rounded-lg"
+                      placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                      disabled={isLoading}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Please provide a direct link to an image (ending in .jpg, .png, etc.)
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Organizer *</label>
+                    <input
+                      {...register("organizer", { required: "Organizer name is required" })}
+                      className="w-full p-2 border rounded-lg"
+                      placeholder="Enter organizer name"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Adding Event..." : "Add Event"}
+                  </button>
+                </form>
+
+                <div className="mt-8">
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="Search events..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full p-2 border rounded-lg"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {isLoading ? (
+                      <div className="col-span-full text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="mt-2 text-gray-600">Loading events...</p>
+                      </div>
+                    ) : filteredEvents.length === 0 ? (
+                      <div className="col-span-full text-center py-8 text-gray-500">
+                        {searchTerm ? "No events found matching your search." : "No events added yet."}
+                      </div>
+                    ) : (
+                      filteredEvents.map((event, index) => (
+                        <div key={index} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
+                          {event.image && (
+                            <div className="aspect-video w-full overflow-hidden">
+                              <img 
+                                src={event.image} 
+                                alt={event.name}
+                                className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <h3 className="font-semibold text-lg mb-2">{event.name}</h3>
+                            <p className="text-gray-600 text-sm mb-3 line-clamp-2">{event.description}</p>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                              <Calendar className="w-4 h-4" />
+                              <span>{new Date(event.date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <MapPin className="w-4 h-4" />
+                              <span>{event.location}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
       <Footer />
     </div>
   );

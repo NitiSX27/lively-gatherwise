@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import FeedbackForm from "./FeedbackForm"; // Import the FeedbackForm component
+import FeedbackForm from "../components/FeedbackForm"; // Import the FeedbackForm component
 
 type EventProps = {
   eventId: string;
