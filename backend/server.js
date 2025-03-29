@@ -5,7 +5,7 @@ const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes"); // Import event routes
 const cors = require("cors");
 const socialMediaRoutes = require("./routes/socialmediaRoutes");
-
+const feedbackRoutes = require("./routes/feedbackRoutes");
 dotenv.config();
 connectDB();
 
@@ -17,6 +17,7 @@ app.use(cors());
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes); // Add event routes
 app.use("/api/social-media", socialMediaRoutes);
+app.use("/api/feedback", feedbackRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
